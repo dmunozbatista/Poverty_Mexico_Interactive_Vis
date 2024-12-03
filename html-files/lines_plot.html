@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="../js/d3.v7.js"></script>
+</html>
+<body>
+    <div id="plot"> 
+    <script>
+        async function povertyLinesPlot() {
+            const povertyData = await d3.csv("../data/clean_dataset.csv");
+            // plot dimmensions
+            let margins = { left: 90, right: 150, bottom: 50, top: 60 };
+            let width = 800 - margins.left - margins.right;
+            let  height = 650 - margins.top - margins.bottom;
+            const selectDiv = d3.select("#plot")
+                                .append("div")
+                                .style("margin-bottom", "10px")
+                                .style("display", "flex")
+                                .style("gap", "10px");
+            const povertyDropdown = selectDiv.append("select")
+                                            .style("padding", "5px");
+                povertyDropdown.selectAll("option")
+                    .data([
+                      { value: "extreme_poverty", text: "Extreme Poverty"},
+                      { value: "alimentary_poverty", text: "Alimentary Poverty" }
+                  ])
+                  .enter()
+                  .append("option")
+                  .attr("value", d => d.value)
+                  .text(d => d.text);
+                  const modeDropdown = selectDiv.append("select")
+              .style("padding", "5px")
+
+            // Selection mode dropdown
+            modeDropdown.selectAll("option")
+                .data([
+                    { value: "top5", text: "Top 5 States"},
+                    { value: "custom", text: "Custom Selection"}
+                ])
+                .enter()
+                .append("option")
+                .attr("value", d => d.value)
+                .text(d => d.text);
+            // Create multi-select dropdown for states
+            const stateSelect = selectDiv.append("select")
+                .attr("multiple", true)
+                .style("padding", "5px")
+                .style("display", "none")
+                .style("height", "100px");
+
+            const stateNames = [...new Set(povertyData.map(d => d.state_name))].sort();
+
+            stateSelect.selectAll("option")
+                    .data(stateNames)
+                    .enter()
+                    .append("option")
+                    .attr("value", d => d)
+                    .text(d => d);
+
+            let div20 = d3
+                .select("#plot")
+                .append("svg")
+                .attr("width", width + margins.left + margins.right)
+                .attr("height",  height + margins.top + margins.bottom)
+                .append("g")
+                .attr("transform", `translate(${margins.left},${margins.top})`);
+
+            function pickStates(selectedIndex, mode) {
+                if (mode === "top5") {
+                    return povertyData
+                    .filter(d => d.year === "2022")
+                    .sort((a, b) => parseFloat(b[selectedIndex]) - parseFloat(a[selectedIndex]))
+                    .slice(0, 5)
+                    .map(d => d.state_name);
+                } else {
+                    const selected = Array.from(stateSelect.node().selectedOptions).map(opt => opt.value);
+                    return selected.length > 0 ? selected.slice(0, 5) : pickStates(selectedIndex, "top5");
+                }
+                }
+
+            function updateVis(selectedIndex, mode){
+                div20.selectAll("*").remove();
+
+                const selectedStates = pickStates(selectedIndex, mode);
+                
+                const filteredData = povertyData.filter(d => selectedStates.includes(d.state_name));
+                
+                const x = d3.scaleLinear()
+                            .domain([2015.5, 2022.5])
+                            .range([ 0, width ]);
+
+
+                // Add Y axis
+                const y = d3.scaleLinear()
+                            .domain([0, 0.5])
+                            .range([ height, 0]);
+
+                // Append axis x and y
+                div20.append("g")
+                        .attr("transform", `translate(0, ${height})`)
+                        .call(d3.axisBottom(x)
+                                .tickValues([2016, 2018, 2020, 2022])
+                                .tickFormat(d3.format("d")));
+                
+                div20.append("g")
+                        .call(d3.axisLeft(y).tickFormat(d => d * 100 + "%"));
+
+                // Define line generator
+                const line = d3.line()
+                                .x(d => x(d.year))
+                                .y(d => y(parseFloat(d[selectedIndex])));
+                
+                // Define Hover functions for lines
+                function lineOnHover(event, d) {
+                    // Enhance the line
+                    d3.select(this)
+                        .transition()
+                        .duration(250)
+                        .attr("stroke-width", 7);
+                    
+                    // Find and enhance the corresponding label
+                    div20.selectAll("text")
+                        .filter(function() {
+                            // Check if this text element is associated with the hovered state
+                            const textContent = d3.select(this).text();
+                            // Match only percentage labels (ending with %)
+                            return textContent.includes('%') && 
+                                filteredData.filter(f => f.state_name === d)
+                                    .some(item => textContent.startsWith((+item[selectedIndex] * 100).toFixed(1)));
+                        })
+                        .transition()
+                        .duration(250)
+                        .style("font-size", "16px")
+                        .style("font-weight", "bold");
+                }
+
+                function lineOffHover(event, d) {
+                    d3.select(this)
+                        .transition(250)
+                        .duration(250)
+                        .attr("stroke-width", 4);
+                    div20.selectAll("text")
+                        .filter(function(){
+                            const textContent = d3.select(this).text();
+                            return textContent.includes('%') &&
+                                filteredData.filter(f => f.state_name === d)
+                                    some(item => textContent.startsWith((+item[selectedIndex] * 100).toFixed(1)));
+                        })
+                        .transition()
+                        .duration(250)
+                        .style("font-size", "10px")
+                        .style("font-weight", "normal")
+                }
+
+                // Generate lines
+                div20.selectAll(".line")
+                        .data(selectedStates)
+                        .enter()
+                        .append("path")
+                        .attr("class", "line")
+                        .attr("d", d => line(filteredData.filter(f => f.state_name===d)))
+                        .attr("fill", "none")
+                        .attr("stroke", (d, i) => d3.schemeCategory10[i])
+                        .attr("stroke-width", 4)
+                        .on("mouseover", lineOnHover)
+                        .on("mouseout", lineOffHover);
+
+                // Add title
+                div20.append("text")
+                        .attr("x", width / 2)
+                        .attr("y", -margins.top / 2)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "20px")
+                        .style("font-weight", "bold")
+                        .text(`${selectedIndex === "extreme_poverty" ? "Extreme": "Alimentary"} Poverty in Mexico Over Time`);
+
+                // Add subtitle
+                div20.append("text")
+                        .attr("x", width / 2)
+                        .attr("y", -margins.top / 4)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "12px")
+                        .style("font-weight", "normal")
+                        .text(mode === "top5" ? "Five states with highest rates in 2022" : "Selected states");
+
+                // Add x axis label
+                div20.append("text")
+                        .attr("x", width / 2)
+                        .attr("y", height + margins.bottom / 2 + 10)
+                        .attr("text-anchor", "middle")
+                        .attr("font-size", "14px")
+                        .attr("font-weight", "bold")
+                        .text("Year");
+
+                // Add y axis label
+                div20.append("text")
+                        .attr("text-anchor", "middle") // Center the text horizontally
+                        .attr("transform", `translate(${-margins.left + 32},${height / 2}) rotate(-90)`) // Position and rotate the label
+                        .style("font-size", "14px")
+                        .style("font-weight", "bold")
+                        .text(`${selectedIndex === "extreme_poverty" ? "Extreme": "Alimentary"} Poverty Rate`);
+
+                // Add legend
+                const legend = div20.append("g")
+                                    .attr("class", "legend")
+                                    .attr("transform", `translate(${width + 10}, 0)`);
+                
+                // Legend title
+                legend.append("text")
+                        .attr("x", 0)
+                        .attr("y", -10)
+                        .style("font-size", "12px")
+                        .style("font-weight", "bold")
+                        .text("States")
+
+                // State name and colors in legend
+                const legendStates = legend.selectAll("legend-state")
+                                            .data(selectedStates)
+                                            .enter()
+                                            .append("g")
+                                            .attr("class", "legend-state")
+                                            .attr("transform", (d, i) => `translate(0, ${i * 20})`) // Since they are grouped, they are going to display the line and state in the correct place
+
+                // Append lines to legend
+                legendStates.append("line")
+                            .attr("x1", 0)
+                            .attr("x2", 20)
+                            .attr("y1", 0)
+                            .attr("y2", 0) // All have the same x and y but is relative to their group (legend-state item)
+                            .attr("stroke", (d, i) => d3.schemeCategory10[i])
+                            .attr("stroke-width", 2);
+
+                // Append state names
+                legendStates.append("text")
+                            .attr("x", 25)
+                            .attr("y", 4)
+                            .attr("font-size", "12px")
+                            .text(d => d);
+
+
+                // Add final values labels
+                let lastYear = "2022";
+                selectedStates.forEach((state, i) => {
+                    let stateData = filteredData.filter(f => f.state_name === state);
+                    let lastValue = stateData.find(d => d.year === lastYear);
+                    if (lastValue) {
+                        div20.append("text")
+                            .attr("x", x(+lastYear) + 5)
+                            .attr("y", y(+lastValue[selectedIndex]))
+                            .attr("dy", "0.3em")
+                            .style("font-size", "10px")
+                            .style("fill", d3.schemeCategory10[i])
+                            .text(`${(+lastValue[selectedIndex] * 100).toFixed(1)}%`);
+                        }
+                    });
+                    }   
+                // Initial plot
+                updateVis("extreme_poverty", "top5");
+                // Update visualization on any change
+                function update() {
+                const selectedIndex = povertyDropdown.node().value;
+                const mode = modeDropdown.node().value;
+                stateSelect.style("display", mode === "custom" ? "block" : "none");
+                updateVis(selectedIndex, mode);
+                };
+
+                // Add event listeners
+                povertyDropdown.on("change", update);
+                modeDropdown.on("change", update);
+                stateSelect.on("change", update);
+            }
+            povertyLinesPlot();
+
+    </script>
+    </div>
+</body>
