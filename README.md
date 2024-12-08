@@ -6,15 +6,21 @@ Used JavaScript, html and D3 to create interactive visualizations about extreme 
 
 ### Choropleth Map 🇲🇽
 
-Option to change year, design to hihglight the selected state, and a tooltip that displays more information about the selected state. 
+Option to change year, design to hihglight the selected state, and a tooltip that displays more information about the selected state.
+
+![Alt text](map_example.png)
 
 ### Bubbles plot 
 
 Scroll effect that shows the difference in extreme poverty for every state; the first scroll renders orange points (2016 extreme poverty rate), the second scroll renders blue points (2022 extreme poverty rate), and the final scroll renders green/red lines to show the difference between 2016 and 2022.
 
+![Alt text](bubbles_example.png)
+
 ### Lines Plot
 
 Option to choose Extreme Poverty or Alimentary Poverty and another option to show the 5 states with the highest rates in 2022 or choose your own 5 states. It also has two hover effects: if you mouseover the line it will increase the stroke width and the size of the label, if you mouseover a point it will show a tooltip with the name of the state and the poverty rate for that year.
+
+![Alt text](lines_example.png)
 
 ## Data
 
