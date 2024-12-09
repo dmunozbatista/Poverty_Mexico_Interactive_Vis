@@ -1,5 +1,7 @@
 # Poverty in Mexico - Interactive Visualizations 📊
 
+website: https://poverty-mexico-danielmb.netlify.app
+
 ## Summary:
 
 Used JavaScript, html and D3 to create interactive visualizations about extreme poverty and alimentary poverty in Mexico. The visualizations include three visualizations
